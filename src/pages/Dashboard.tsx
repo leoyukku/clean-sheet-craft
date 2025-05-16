@@ -137,9 +137,40 @@ const Dashboard = () => {
   const handleSaveNote = async (note: Partial<Note>) => {
     try {
       if (isCreating) {
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+          toast({
+            title: "Authentication required",
+            description: "Please sign in to create notes",
+            variant: "destructive"
+          });
+          return;
+        }
+
+        // Make sure required fields are present
+        if (!note.title) {
+          toast({
+            title: "Title required",
+            description: "Please provide a title for your note",
+            variant: "destructive"
+          });
+          return;
+        }
+
+        // Create a properly typed note with required fields
+        const newNote = {
+          title: note.title,
+          content: note.content || null,
+          is_public: note.is_public || false,
+          category: note.category || null,
+          user_id: user.id
+        };
+
         const { data, error } = await supabase
           .from('notes')
-          .insert([note])
+          .insert(newNote)
           .select();
         
         if (error) throw error;
