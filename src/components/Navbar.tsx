@@ -1,10 +1,18 @@
 
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/");
+  };
 
   return (
     <nav className="w-full border-b border-gray-100 py-4 bg-white/80 backdrop-blur-md z-50">
@@ -17,21 +25,39 @@ const Navbar = () => {
 
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center space-x-8">
-          <Link to="/dashboard" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
-            Dashboard
-          </Link>
-          <a href="#features" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
-            Features
-          </a>
-          <a href="#about" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
-            About
-          </a>
-          <a href="#contact" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
-            Contact
-          </a>
-          <Button size="sm" className="bg-[#9b87f5] hover:bg-[#7E69AB] text-white">
-            Get Started
-          </Button>
+          {user ? (
+            <>
+              <Link to="/dashboard" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
+                Dashboard
+              </Link>
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={handleSignOut}
+              >
+                Sign Out
+              </Button>
+            </>
+          ) : (
+            <>
+              <a href="#features" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
+                Features
+              </a>
+              <a href="#about" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
+                About
+              </a>
+              <a href="#contact" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
+                Contact
+              </a>
+              <Button 
+                size="sm" 
+                className="bg-[#9b87f5] hover:bg-[#7E69AB] text-white"
+                onClick={() => navigate("/auth")}
+              >
+                Sign In
+              </Button>
+            </>
+          )}
         </div>
 
         {/* Mobile Menu Button */}
@@ -58,37 +84,62 @@ const Navbar = () => {
       {isMenuOpen && (
         <div className="md:hidden absolute w-full bg-white border-b border-gray-100 shadow-lg z-50">
           <div className="container mx-auto px-4 py-4 flex flex-col space-y-4">
-            <Link
-              to="/dashboard"
-              className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Dashboard
-            </Link>
-            <a
-              href="#features"
-              className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Features
-            </a>
-            <a
-              href="#about"
-              className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              About
-            </a>
-            <a
-              href="#contact"
-              className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Contact
-            </a>
-            <Button size="sm" className="bg-[#9b87f5] hover:bg-[#7E69AB] text-white w-full">
-              Get Started
-            </Button>
+            {user ? (
+              <>
+                <Link
+                  to="/dashboard"
+                  className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Dashboard
+                </Link>
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => {
+                    handleSignOut();
+                    setIsMenuOpen(false);
+                  }}
+                  className="w-full"
+                >
+                  Sign Out
+                </Button>
+              </>
+            ) : (
+              <>
+                <a
+                  href="#features"
+                  className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Features
+                </a>
+                <a
+                  href="#about"
+                  className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  About
+                </a>
+                <a
+                  href="#contact"
+                  className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Contact
+                </a>
+                <Button 
+                  size="sm" 
+                  className="bg-[#9b87f5] hover:bg-[#7E69AB] text-white w-full"
+                  onClick={() => {
+                    navigate("/auth");
+                    setIsMenuOpen(false);
+                  }}
+                >
+                  Sign In
+                </Button>
+              </>
+            )}
           </div>
         </div>
       )}

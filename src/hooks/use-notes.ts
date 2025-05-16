@@ -1,222 +1,228 @@
 
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { Note } from "@/types/note";
+import { useState, useEffect } from 'react';
+import { Note } from '@/types/note';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from './use-toast';
+
+type ViewMode = 'all' | 'mine' | 'public';
 
 export function useNotes() {
   const [notes, setNotes] = useState<Note[]>([]);
-  const [filteredNotes, setFilteredNotes] = useState<Note[]>([]);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [categories, setCategories] = useState<string[]>([]);
-  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<"all" | "mine" | "public">("mine");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState<ViewMode>('all');
+  const [filterCategory, setFilterCategory] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const { user } = useAuth();
   const { toast } = useToast();
 
-  // Fetch notes on viewMode change
+  // Fetch notes based on current filters
   useEffect(() => {
-    fetchNotes();
-  }, [viewMode]);
-
-  // Apply filters when notes, category filter or search query change
-  useEffect(() => {
-    applyFilters();
-  }, [notes, categoryFilter, searchQuery]);
-
-  const fetchNotes = async () => {
-    setIsLoading(true);
-    try {
-      let query = supabase
-        .from('notes')
-        .select('*');
-      
-      if (viewMode === "mine") {
-        // Only fetch user's notes
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          toast({
-            title: "Authentication required",
-            description: "Please sign in to view your notes",
-            variant: "destructive"
-          });
-          setIsLoading(false);
-          return;
+    async function fetchNotes() {
+      try {
+        setIsLoading(true);
+        
+        let query = supabase.from('notes').select('*');
+        
+        // Apply view mode filters
+        if (viewMode === 'mine' && user) {
+          query = query.eq('user_id', user.id);
+        } else if (viewMode === 'public') {
+          query = query.eq('is_public', true);
         }
-      } else if (viewMode === "public") {
-        // Only fetch public notes
-        query = query.eq('is_public', true);
+        
+        // Apply category filter if set
+        if (filterCategory) {
+          query = query.eq('category', filterCategory);
+        }
+        
+        // Apply search query if set
+        if (searchQuery) {
+          query = query.or(`title.ilike.%${searchQuery}%,content.ilike.%${searchQuery}%`);
+        }
+        
+        // Order by most recently updated
+        query = query.order('updated_at', { ascending: false });
+        
+        const { data, error } = await query;
+        
+        if (error) {
+          throw error;
+        }
+        
+        if (data) {
+          setNotes(data);
+          
+          // Extract unique categories
+          const uniqueCategories = Array.from(
+            new Set(
+              data
+                .map(note => note.category)
+                .filter(Boolean) as string[]
+            )
+          );
+          
+          setCategories(uniqueCategories);
+        }
+      } catch (error) {
+        console.error('Error fetching notes:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load notes',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsLoading(false);
       }
-      
-      const { data, error } = await query.order('created_at', { ascending: false });
+    }
+    
+    fetchNotes();
+  }, [viewMode, filterCategory, searchQuery, user, toast]);
+
+  const selectNote = (note: Note) => {
+    setSelectedNote(note);
+    setIsCreating(false);
+  };
+
+  const createNote = () => {
+    setSelectedNote(null);
+    setIsCreating(true);
+  };
+
+  const deleteNote = async (id: string) => {
+    try {
+      const { error } = await supabase.from('notes').delete().eq('id', id);
       
       if (error) {
         throw error;
       }
       
-      if (data) {
-        setNotes(data as Note[]);
-        
-        // Extract unique categories
-        const uniqueCategories = Array.from(
-          new Set(data.map(note => note.category).filter(Boolean))
-        ) as string[];
-        setCategories(uniqueCategories);
-      }
-    } catch (error: any) {
+      setNotes(notes.filter(note => note.id !== id));
       toast({
-        title: "Error fetching notes",
-        description: error.message,
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const applyFilters = () => {
-    let filtered = [...notes];
-    
-    // Apply category filter
-    if (categoryFilter) {
-      filtered = filtered.filter(note => note.category === categoryFilter);
-    }
-    
-    // Apply search query
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(note => 
-        note.title.toLowerCase().includes(query) || 
-        (note.content && note.content.toLowerCase().includes(query))
-      );
-    }
-    
-    setFilteredNotes(filtered);
-  };
-
-  const handleCreateNote = () => {
-    setSelectedNote(null);
-    setIsCreating(true);
-  };
-
-  const handleSaveNote = async (note: Partial<Note>) => {
-    try {
-      if (isCreating) {
-        // Get current user
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (!user) {
-          toast({
-            title: "Authentication required",
-            description: "Please sign in to create notes",
-            variant: "destructive"
-          });
-          return;
-        }
-
-        // Make sure required fields are present
-        if (!note.title) {
-          toast({
-            title: "Title required",
-            description: "Please provide a title for your note",
-            variant: "destructive"
-          });
-          return;
-        }
-
-        // Create a properly typed note with required fields
-        const newNote = {
-          title: note.title,
-          content: note.content || null,
-          is_public: note.is_public || false,
-          category: note.category || null,
-          user_id: user.id
-        };
-
-        const { data, error } = await supabase
-          .from('notes')
-          .insert(newNote)
-          .select();
-        
-        if (error) throw error;
-        
-        if (data) {
-          toast({
-            title: "Note created",
-            description: "Your note has been created successfully"
-          });
-          setIsCreating(false);
-          await fetchNotes();
-        }
-      } else if (selectedNote) {
-        const { error } = await supabase
-          .from('notes')
-          .update(note)
-          .eq('id', selectedNote.id);
-        
-        if (error) throw error;
-        
-        toast({
-          title: "Note updated",
-          description: "Your note has been updated successfully"
-        });
-        await fetchNotes();
-      }
-    } catch (error: any) {
-      toast({
-        title: "Error saving note",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleDeleteNote = async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from('notes')
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
-      
-      toast({
-        title: "Note deleted",
-        description: "Your note has been deleted successfully"
+        title: 'Success',
+        description: 'Note deleted successfully',
       });
       
+      // Reset selection if the deleted note was selected
       if (selectedNote?.id === id) {
         setSelectedNote(null);
       }
-      
-      await fetchNotes();
-    } catch (error: any) {
+    } catch (error) {
+      console.error('Error deleting note:', error);
       toast({
-        title: "Error deleting note",
-        description: error.message,
-        variant: "destructive"
+        title: 'Error',
+        description: 'Failed to delete note',
+        variant: 'destructive',
       });
     }
   };
 
+  const saveNote = async (note: Partial<Note>) => {
+    try {
+      if (!user) {
+        toast({
+          title: 'Authentication required',
+          description: 'You must be signed in to save notes',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      if (!note.title) {
+        toast({
+          title: 'Validation Error',
+          description: 'Note title is required',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      if (isCreating) {
+        // Create new note
+        const { data, error } = await supabase.from('notes').insert({
+          title: note.title,
+          content: note.content || '',
+          category: note.category || null,
+          is_public: note.is_public || false,
+          user_id: user.id,
+        }).select('*').single();
+        
+        if (error) {
+          throw error;
+        }
+        
+        if (data) {
+          setNotes([data, ...notes]);
+          toast({
+            title: 'Success',
+            description: 'Note created successfully',
+          });
+        }
+      } else if (selectedNote) {
+        // Update existing note
+        const { data, error } = await supabase
+          .from('notes')
+          .update({
+            title: note.title,
+            content: note.content,
+            category: note.category,
+            is_public: note.is_public,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', selectedNote.id)
+          .select('*')
+          .single();
+        
+        if (error) {
+          throw error;
+        }
+        
+        if (data) {
+          setNotes(notes.map(n => n.id === data.id ? data : n));
+          toast({
+            title: 'Success',
+            description: 'Note updated successfully',
+          });
+        }
+      }
+      
+      // Reset state
+      setSelectedNote(null);
+      setIsCreating(false);
+    } catch (error) {
+      console.error('Error saving note:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to save note',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const cancelEdit = () => {
+    setSelectedNote(null);
+    setIsCreating(false);
+  };
+
   return {
-    notes: filteredNotes,
+    notes,
     selectedNote,
     isCreating,
     isLoading,
     categories,
-    categoryFilter,
     viewMode,
+    filterCategory,
     searchQuery,
-    setSelectedNote,
-    setIsCreating,
-    setCategoryFilter,
+    selectNote,
+    createNote,
+    deleteNote,
+    saveNote,
+    cancelEdit,
     setViewMode,
+    setFilterCategory,
     setSearchQuery,
-    handleCreateNote,
-    handleSaveNote,
-    handleDeleteNote
   };
 }
