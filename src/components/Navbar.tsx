@@ -1,6 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -9,13 +10,16 @@ const Navbar = () => {
     <nav className="w-full border-b border-gray-100 py-4 bg-white/80 backdrop-blur-md z-50">
       <div className="container mx-auto px-4 flex justify-between items-center">
         <div className="flex items-center">
-          <a href="/" className="text-xl font-medium text-gray-900">
+          <Link to="/" className="text-xl font-medium text-gray-900">
             YourApp
-          </a>
+          </Link>
         </div>
 
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center space-x-8">
+          <Link to="/dashboard" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
+            Dashboard
+          </Link>
           <a href="#features" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
             Features
           </a>
@@ -54,6 +58,13 @@ const Navbar = () => {
       {isMenuOpen && (
         <div className="md:hidden absolute w-full bg-white border-b border-gray-100 shadow-lg z-50">
           <div className="container mx-auto px-4 py-4 flex flex-col space-y-4">
+            <Link
+              to="/dashboard"
+              className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Dashboard
+            </Link>
             <a
               href="#features"
               className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
