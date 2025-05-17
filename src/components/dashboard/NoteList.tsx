@@ -13,6 +13,7 @@ type Note = {
   created_at: string;
   updated_at: string;
   user_id: string;
+  user_email?: string;  // Added field for user email
 }
 
 interface NoteListProps {
@@ -72,6 +73,12 @@ export function NoteList({
               <p className="text-sm text-muted-foreground">
                 {note.content || "No content"}
               </p>
+              {note.user_email && (
+                <p className="text-xs text-muted-foreground mt-2 italic">
+                  Author: {note.user_email.substring(0, 10)}
+                  {note.user_email.length > 10 ? '...' : ''}
+                </p>
+              )}
             </ScrollArea>
           </CardContent>
           <CardFooter className="flex justify-between items-center">

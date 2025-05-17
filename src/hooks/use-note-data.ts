@@ -25,7 +25,15 @@ export function useNoteData(viewMode: ViewMode, categoryFilter: string | null, s
         setIsLoading(true);
         console.log("Fetching notes with viewMode:", viewMode, "and user:", user?.id);
         
-        let query = supabase.from('notes').select('*');
+        // Fetch notes with join to users table to get emails
+        let query = supabase
+          .from('notes')
+          .select(`
+            *,
+            users (
+              email
+            )
+          `);
         
         // Apply view mode filters
         if (viewMode === 'mine' && user) {
@@ -54,7 +62,13 @@ export function useNoteData(viewMode: ViewMode, categoryFilter: string | null, s
         }
         
         if (data) {
-          setNotes(data);
+          // Transform the notes to include the user email
+          const notesWithEmail = data.map(note => ({
+            ...note,
+            user_email: note.users?.email || 'Unknown'
+          }));
+          
+          setNotes(notesWithEmail);
           
           // Extract unique categories
           const uniqueCategories = Array.from(
