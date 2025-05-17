@@ -1,6 +1,6 @@
-
 import { ReactNode } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { Navigate } from "react-router-dom";
 
 type RouteGuardProps = {
   children: ReactNode;
@@ -21,7 +21,11 @@ export function RouteGuard({ children }: RouteGuardProps) {
 
   console.log("RouteGuard: Current auth state:", authState);
   
-  // The redirect logic is now handled in AuthContext
-  // RouteGuard simply shows the children if auth is ready
+  // If not authenticated, redirect to auth page
+  if (authState === "UNAUTHENTICATED") {
+    return <Navigate to="/auth" replace />;
+  }
+  
+  // Otherwise, render the children
   return <>{children}</>;
 }

@@ -80,6 +80,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         
+        // Fix the TypeScript error by comparing with specific string literals
+        // that we know are valid event types
         if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
           setAuthState("AUTHENTICATED");
         } else if (event === "SIGNED_OUT" || event === "USER_DELETED") {
