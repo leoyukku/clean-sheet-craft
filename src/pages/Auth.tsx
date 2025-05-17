@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Navigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,53 +8,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function Auth() {
-  const location = useLocation();
-  const from = (location.state as any)?.from?.pathname || "/dashboard";
-  const { user, signIn, signUp, isLoading, authReady } = useAuth();
+  const { signIn, signUp, isLoading, authState } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [activeTab, setActiveTab] = useState("signin");
-  const [authInProgress, setAuthInProgress] = useState(false);
-  const [redirectConfirmed, setRedirectConfirmed] = useState(false);
   
-  useEffect(() => {
-    // Streamlined redirect logic with reduced delay
-    if (authReady && !isLoading && user && !redirectConfirmed) {
-      console.log("Auth page: Auth is ready, user is present, preparing to redirect to:", from);
-      
-      // Reduced delay to 200ms (from 1000ms)
-      const timer = setTimeout(() => {
-        console.log("Auth page: Confirming redirect");
-        setRedirectConfirmed(true);
-      }, 200);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [user, isLoading, authReady, from, redirectConfirmed]);
-
-  // Immediate redirect when confirmed
-  if (redirectConfirmed && user) {
-    console.log("Auth page: Executing redirect to:", from);
-    return <Navigate to={from} replace />;
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (authInProgress) return;
+    if (isLoading) return;
     
-    setAuthInProgress(true);
-    
-    try {
-      if (activeTab === "signin") {
-        await signIn(email, password);
-      } else {
-        await signUp(email, password);
-      }
-    } finally {
-      setAuthInProgress(false);
+    if (activeTab === "signin") {
+      await signIn(email, password);
+    } else {
+      await signUp(email, password);
     }
   };
+
+  console.log("Auth page: Current auth state:", authState);
 
   return (
     <div className="h-screen flex flex-col">
@@ -106,9 +77,9 @@ export default function Auth() {
                   <Button 
                     type="submit" 
                     className="w-full bg-[#9b87f5] hover:bg-[#7E69AB]"
-                    disabled={isLoading || authInProgress}
+                    disabled={isLoading}
                   >
-                    {isLoading || authInProgress ? "Signing In..." : "Sign In"}
+                    {isLoading ? "Signing In..." : "Sign In"}
                   </Button>
                 </CardFooter>
               </form>
@@ -149,9 +120,9 @@ export default function Auth() {
                   <Button 
                     type="submit" 
                     className="w-full bg-[#9b87f5] hover:bg-[#7E69AB]"
-                    disabled={isLoading || authInProgress}
+                    disabled={isLoading}
                   >
-                    {isLoading || authInProgress ? "Signing Up..." : "Sign Up"}
+                    {isLoading ? "Signing Up..." : "Sign Up"}
                   </Button>
                 </CardFooter>
               </form>

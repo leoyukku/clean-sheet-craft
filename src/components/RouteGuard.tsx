@@ -1,28 +1,13 @@
 
-import { Navigate, useLocation } from "react-router-dom";
+import { ReactNode } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { ReactNode, useState, useEffect } from "react";
 
 type RouteGuardProps = {
   children: ReactNode;
 };
 
 export function RouteGuard({ children }: RouteGuardProps) {
-  const { user, isLoading, authReady } = useAuth();
-  const location = useLocation();
-  const [shouldRedirect, setShouldRedirect] = useState(false);
-  
-  useEffect(() => {
-    // Only determine redirect after auth is ready and not loading
-    if (authReady && !isLoading) {
-      // Reduced delay for redirection
-      const timer = setTimeout(() => {
-        setShouldRedirect(!user);
-      }, 100); // Reduced from 500ms to 100ms
-      
-      return () => clearTimeout(timer);
-    }
-  }, [user, isLoading, authReady]);
+  const { authState, authReady, isLoading } = useAuth();
   
   // Don't make any decisions until auth is ready
   if (!authReady || isLoading) {
@@ -34,13 +19,9 @@ export function RouteGuard({ children }: RouteGuardProps) {
     );
   }
 
-  console.log("RouteGuard: Auth ready, user state:", !!user, "shouldRedirect:", shouldRedirect);
+  console.log("RouteGuard: Current auth state:", authState);
   
-  // Only redirect when we're sure we should
-  if (shouldRedirect) {
-    console.log("RouteGuard: Redirecting to auth page");
-    return <Navigate to="/auth" state={{ from: location }} replace />;
-  }
-
+  // The redirect logic is now handled in AuthContext
+  // RouteGuard simply shows the children if auth is ready
   return <>{children}</>;
 }

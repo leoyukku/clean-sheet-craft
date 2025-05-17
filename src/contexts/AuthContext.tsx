@@ -3,12 +3,21 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate, useLocation } from "react-router-dom";
+
+// Define clear auth states for our state machine
+type AuthState = 
+  | "INITIALIZING" // Initial loading state
+  | "AUTHENTICATED" // User is logged in
+  | "UNAUTHENTICATED" // User is not logged in
+  | "REDIRECTING"; // Currently handling a redirect
 
 type AuthContextType = {
   session: Session | null;
   user: User | null;
   isLoading: boolean;
-  authReady: boolean; // New state to track when auth is fully initialized
+  authReady: boolean;
+  authState: AuthState;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -20,12 +29,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [authReady, setAuthReady] = useState(false); // Track when auth is ready
+  const [authReady, setAuthReady] = useState(false);
+  const [authState, setAuthState] = useState<AuthState>("INITIALIZING");
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Handle redirects based on auth state
+  useEffect(() => {
+    // Only handle redirects after auth is ready and not in initialization state
+    if (!authReady || authState === "INITIALIZING" || authState === "REDIRECTING") {
+      return;
+    }
+
+    console.log("AuthContext: Current auth state:", authState, "at path:", location.pathname);
+    
+    // Handle authentication-based redirects
+    if (authState === "AUTHENTICATED") {
+      // If user is authenticated and on auth page, redirect to dashboard
+      if (location.pathname === "/auth") {
+        console.log("AuthContext: Authenticated user on /auth, redirecting to dashboard");
+        setAuthState("REDIRECTING");
+        const from = (location.state as any)?.from?.pathname || "/dashboard";
+        navigate(from, { replace: true });
+      }
+    } else if (authState === "UNAUTHENTICATED") {
+      // If user is not authenticated and on a protected page, redirect to auth
+      if (location.pathname.startsWith("/dashboard")) {
+        console.log("AuthContext: Unauthenticated user on protected route, redirecting to auth");
+        setAuthState("REDIRECTING");
+        navigate("/auth", { state: { from: location }, replace: true });
+      }
+    }
+  }, [authState, authReady, location.pathname, navigate, location]);
+
+  // Update auth state when user changes
+  useEffect(() => {
+    if (authReady) {
+      setAuthState(user ? "AUTHENTICATED" : "UNAUTHENTICATED");
+    }
+  }, [user, authReady]);
 
   useEffect(() => {
     console.log("Setting up auth state listener...");
-    let authStateInitialized = false;
     
     // Set up auth state listener FIRST to catch all auth events
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -34,18 +80,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         
-        // Only set loading to false after we've received at least one auth state event
-        if (!authStateInitialized) {
-          authStateInitialized = true;
-          // Reduced delay to ensure state settles
-          setTimeout(() => {
-            setIsLoading(false);
-            setAuthReady(true);
-            console.log("Auth state initialized with event:", event);
-          }, 100); // Reduced from 500ms to 100ms
-        } else {
-          setIsLoading(false);
+        if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+          setAuthState("AUTHENTICATED");
+        } else if (event === "SIGNED_OUT" || event === "USER_DELETED") {
+          setAuthState("UNAUTHENTICATED");
         }
+        
+        // Set auth as ready and loading as false immediately after first auth event
+        setIsLoading(false);
+        setAuthReady(true);
       }
     );
 
@@ -55,16 +98,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       
-      // If we haven't received an auth state event after 500ms (reduced from 1 second),
-      // consider auth initialized anyway to prevent a stuck loading state
-      setTimeout(() => {
-        if (!authStateInitialized) {
-          console.log("Auth state initialization timeout - setting ready");
-          authStateInitialized = true;
-          setIsLoading(false);
-          setAuthReady(true);
-        }
-      }, 500); // Reduced from 1000ms to 500ms
+      // Set auth as ready and loading false after initial session check
+      setIsLoading(false);
+      setAuthReady(true);
+      setAuthState(session ? "AUTHENTICATED" : "UNAUTHENTICATED");
+    }).catch(error => {
+      console.error("Error checking session:", error);
+      setIsLoading(false);
+      setAuthReady(true);
+      setAuthState("UNAUTHENTICATED");
     });
 
     return () => {
@@ -83,13 +125,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           description: error.message,
           variant: "destructive",
         });
-        setIsLoading(false); // Reset loading state on error
+        setIsLoading(false);
       } else {
         toast({
           title: "Welcome back!",
           description: "You've been successfully signed in.",
         });
-        // Auth state listener will handle the state update
+        // Auth state listener will handle the state updates
       }
     } catch (error) {
       toast({
@@ -97,7 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         description: "An unexpected error occurred.",
         variant: "destructive",
       });
-      setIsLoading(false); // Reset loading state on error
+      setIsLoading(false);
     }
   };
 
@@ -112,13 +154,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           description: error.message,
           variant: "destructive",
         });
-        setIsLoading(false); // Reset loading only on error
+        setIsLoading(false);
       } else {
         toast({
           title: "Account created",
           description: "Please check your email to confirm your account.",
         });
-        // Auth state listener will handle the isLoading state
+        // Auth state listener will handle the state updates
       }
     } catch (error) {
       toast({
@@ -126,7 +168,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         description: "An unexpected error occurred.",
         variant: "destructive",
       });
-      setIsLoading(false); // Reset loading only on error
+      setIsLoading(false);
     }
   };
 
@@ -138,7 +180,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         title: "Signed out",
         description: "You've been successfully signed out.",
       });
-      // Auth state listener will handle the isLoading state and user state reset
+      // Auth state listener will handle the state updates
     } catch (error) {
       toast({
         title: "Error",
@@ -150,7 +192,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, isLoading, authReady, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ 
+      session, 
+      user, 
+      isLoading, 
+      authReady, 
+      authState, 
+      signIn, 
+      signUp, 
+      signOut 
+    }}>
       {children}
     </AuthContext.Provider>
   );
