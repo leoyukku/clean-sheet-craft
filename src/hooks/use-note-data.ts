@@ -29,9 +29,9 @@ export function useNoteData(viewMode: ViewMode, categoryFilter: string | null, s
         setIsLoading(true);
         console.log("Fetching notes with viewMode:", viewMode, "and user:", user?.id);
         
-        let query = supabase
-          .from('notes')
-          .select('*, users:user_id(email)');
+        // Since we don't have a direct relationship in Supabase, 
+        // we need to get user emails in a separate step
+        let query = supabase.from('notes').select('*');
         
         // Apply view mode filters
         if (viewMode === 'mine' && user) {
@@ -60,11 +60,30 @@ export function useNoteData(viewMode: ViewMode, categoryFilter: string | null, s
         }
         
         if (data) {
-          const safeNotes = data.map(note => ({
-            ...note,
-            users: isUserWithEmail(note.users) ? note.users : undefined
+          // For each note, get the user email if needed
+          const notesWithEmail = await Promise.all(data.map(async (note) => {
+            // Only fetch user email if needed (for public notes)
+            if (viewMode === 'public' && note.user_id) {
+              const { data: userData } = await supabase
+                .from('users')
+                .select('email')
+                .eq('id', note.user_id)
+                .single();
+              
+              return {
+                ...note,
+                user_email: userData?.email || 'Unknown'
+              };
+            }
+            
+            // For user's own notes, we already know their email
+            return {
+              ...note,
+              user_email: viewMode === 'mine' ? user?.email : 'Unknown'
+            };
           }));
-          setNotes(safeNotes);
+          
+          setNotes(notesWithEmail as Note[]);
           
           // Extract unique categories
           const uniqueCategories = Array.from(
