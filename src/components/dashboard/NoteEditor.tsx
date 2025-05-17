@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 type Note = {
   id: string;
@@ -40,6 +41,7 @@ export function NoteEditor({
   const [category, setCategory] = useState<string>("");
   const [newCategory, setNewCategory] = useState("");
   const [showNewCategory, setShowNewCategory] = useState(false);
+  const { toast } = useToast();
   
   useEffect(() => {
     if (note) {
@@ -57,6 +59,7 @@ export function NoteEditor({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("Form submitted");
     
     const finalCategory = showNewCategory ? newCategory : category;
     
@@ -64,7 +67,11 @@ export function NoteEditor({
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user && isCreating) {
-      // Handle error - user not authenticated
+      toast({
+        title: "Error",
+        description: "You must be logged in to create notes",
+        variant: "destructive"
+      });
       return;
     }
     
@@ -76,6 +83,7 @@ export function NoteEditor({
       ...(isCreating && user ? { user_id: user.id } : {})
     };
     
+    console.log("Saving note:", updatedNote);
     onSave(updatedNote);
   };
 
@@ -163,7 +171,13 @@ export function NoteEditor({
           <Button type="button" variant="outline" onClick={onCancel}>
             Cancel
           </Button>
-          <Button type="submit" className="bg-[#9b87f5] hover:bg-[#7E69AB]">
+          <Button 
+            type="submit" 
+            className="bg-[#9b87f5] hover:bg-[#7E69AB]"
+            onClick={(e) => {
+              console.log("Submit button clicked");
+            }}
+          >
             {isCreating ? "Create Note" : "Update Note"}
           </Button>
         </CardFooter>

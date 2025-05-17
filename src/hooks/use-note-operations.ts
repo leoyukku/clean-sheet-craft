@@ -12,6 +12,7 @@ export function useNoteOperations() {
   const { toast } = useToast();
 
   const handleCreateNote = () => {
+    console.log("Creating new note");
     setSelectedNote(null);
     setIsCreating(true);
   };
@@ -46,6 +47,7 @@ export function useNoteOperations() {
 
   const handleSaveNote = async (note: Partial<Note>, notes: Note[], updateNotes: (notes: Note[]) => void) => {
     try {
+      console.log("Handling save note", note);
       if (!user) {
         toast({
           title: 'Authentication required',
@@ -65,6 +67,7 @@ export function useNoteOperations() {
       }
       
       if (isCreating) {
+        console.log("Creating new note in database");
         // Create new note
         const { data, error } = await supabase.from('notes').insert({
           title: note.title,
@@ -86,6 +89,7 @@ export function useNoteOperations() {
           });
         }
       } else if (selectedNote) {
+        console.log("Updating existing note");
         // Update existing note
         const { data, error } = await supabase
           .from('notes')
