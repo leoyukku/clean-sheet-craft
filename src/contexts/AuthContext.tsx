@@ -1,4 +1,5 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+
+import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback, useRef } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -9,7 +10,7 @@ type AuthState =
   | "INITIALIZING" // Initial loading state
   | "AUTHENTICATED" // User is logged in
   | "UNAUTHENTICATED" // User is not logged in
-  | "REDIRECTING"; // Currently handling a redirect
+  | "STABLE"; // Auth state is stable and decisions can be made
 
 type AuthContextType = {
   session: Session | null;
@@ -24,6 +25,7 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Create a provider that manages auth state
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -33,88 +35,137 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // Use refs to track previous state without triggering re-renders
+  const previousPathRef = useRef<string | null>(null);
+  const redirectInProgressRef = useRef<boolean>(false);
 
-  // Handle redirects based on auth state
+  // Handle redirects based on auth state - debounced
   useEffect(() => {
-    // Only handle redirects after auth is ready and not in initialization state
-    if (!authReady || authState === "INITIALIZING" || authState === "REDIRECTING") {
+    // Skip redirect logic during initialization
+    if (!authReady || authState === "INITIALIZING") {
+      return;
+    }
+
+    // Prevent handling redirects multiple times for the same path
+    if (previousPathRef.current === location.pathname) {
+      return;
+    }
+    previousPathRef.current = location.pathname;
+
+    // Don't redirect if we're already in a redirect operation
+    if (redirectInProgressRef.current) {
       return;
     }
 
     console.log("AuthContext: Current auth state:", authState, "at path:", location.pathname);
     
-    // Handle authentication-based redirects
-    if (authState === "AUTHENTICATED") {
+    // Only handle redirects after auth state is stable
+    if (authState === "STABLE") {
       // If user is authenticated and on auth page, redirect to dashboard
-      if (location.pathname === "/auth") {
+      if (user && location.pathname === "/auth") {
         console.log("AuthContext: Authenticated user on /auth, redirecting to dashboard");
-        setAuthState("REDIRECTING");
+        redirectInProgressRef.current = true;
         const from = (location.state as any)?.from?.pathname || "/dashboard";
-        navigate(from, { replace: true });
-      }
-    } else if (authState === "UNAUTHENTICATED") {
+        setTimeout(() => {
+          redirectInProgressRef.current = false;
+          navigate(from, { replace: true });
+        }, 10);
+      } 
       // If user is not authenticated and on a protected page, redirect to auth
-      if (location.pathname.startsWith("/dashboard")) {
+      else if (!user && location.pathname.startsWith("/dashboard")) {
         console.log("AuthContext: Unauthenticated user on protected route, redirecting to auth");
-        setAuthState("REDIRECTING");
-        navigate("/auth", { state: { from: location }, replace: true });
+        redirectInProgressRef.current = true;
+        setTimeout(() => {
+          redirectInProgressRef.current = false;
+          navigate("/auth", { state: { from: location }, replace: true });
+        }, 10);
       }
     }
-  }, [authState, authReady, location.pathname, navigate, location]);
+  }, [authState, authReady, location.pathname, navigate, location, user]);
 
-  // Update auth state when user changes
-  useEffect(() => {
-    if (authReady) {
-      setAuthState(user ? "AUTHENTICATED" : "UNAUTHENTICATED");
-    }
-  }, [user, authReady]);
-
+  // Set up auth state listeners once on component mount
   useEffect(() => {
     console.log("Setting up auth state listener...");
+    let mounted = true;
     
     // Set up auth state listener FIRST to catch all auth events
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        console.log("Auth state changed:", event, session?.user?.email);
-        setSession(session);
-        setUser(session?.user ?? null);
+      (event, newSession) => {
+        console.log("Auth state changed:", event, newSession?.user?.email);
         
-        // Only handle the specific events we know are valid
-        if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+        if (!mounted) return;
+        
+        if (newSession) {
+          setSession(newSession);
+          setUser(newSession.user);
           setAuthState("AUTHENTICATED");
-        } else if (event === "SIGNED_OUT") {
+        } else {
+          setSession(null);
+          setUser(null);
           setAuthState("UNAUTHENTICATED");
         }
         
-        // Set auth as ready and loading as false immediately after first auth event
+        // Mark auth as ready after processing auth event
         setIsLoading(false);
         setAuthReady(true);
+        
+        // Set stable state after a small delay to allow state to settle
+        setTimeout(() => {
+          if (mounted) {
+            setAuthState("STABLE");
+          }
+        }, 50);
       }
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log("Initial session check:", session?.user?.email);
-      setSession(session);
-      setUser(session?.user ?? null);
+    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+      if (!mounted) return;
       
-      // Set auth as ready and loading false after initial session check
+      console.log("Initial session check:", initialSession?.user?.email);
+      
+      if (initialSession) {
+        setSession(initialSession);
+        setUser(initialSession.user);
+        setAuthState("AUTHENTICATED");
+      } else {
+        setAuthState("UNAUTHENTICATED");
+      }
+      
       setIsLoading(false);
       setAuthReady(true);
-      setAuthState(session ? "AUTHENTICATED" : "UNAUTHENTICATED");
+      
+      // Set stable state after a small delay to allow state to settle
+      setTimeout(() => {
+        if (mounted) {
+          setAuthState("STABLE");
+        }
+      }, 50);
     }).catch(error => {
+      if (!mounted) return;
+      
       console.error("Error checking session:", error);
+      setAuthState("UNAUTHENTICATED");
       setIsLoading(false);
       setAuthReady(true);
-      setAuthState("UNAUTHENTICATED");
+      
+      // Set stable state after a small delay to allow state to settle
+      setTimeout(() => {
+        if (mounted) {
+          setAuthState("STABLE");
+        }
+      }, 50);
     });
 
     return () => {
+      mounted = false;
       subscription.unsubscribe();
     };
   }, []);
 
-  const signIn = async (email: string, password: string) => {
+  // Memoize auth methods to maintain reference equality between renders
+  const signIn = useCallback(async (email: string, password: string) => {
     try {
       setIsLoading(true);
       const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -141,9 +192,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       setIsLoading(false);
     }
-  };
+  }, [toast]);
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = useCallback(async (email: string, password: string) => {
     try {
       setIsLoading(true);
       const { error } = await supabase.auth.signUp({ email, password });
@@ -170,9 +221,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       setIsLoading(false);
     }
-  };
+  }, [toast]);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     try {
       setIsLoading(true);
       await supabase.auth.signOut();
@@ -189,19 +240,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       setIsLoading(false);
     }
-  };
+  }, [toast]);
+
+  // Creating a memoized context value to prevent unnecessary re-renders
+  const contextValue = React.useMemo(() => ({
+    session, 
+    user, 
+    isLoading, 
+    authReady, 
+    authState, 
+    signIn, 
+    signUp, 
+    signOut
+  }), [session, user, isLoading, authReady, authState, signIn, signUp, signOut]);
 
   return (
-    <AuthContext.Provider value={{ 
-      session, 
-      user, 
-      isLoading, 
-      authReady, 
-      authState, 
-      signIn, 
-      signUp, 
-      signOut 
-    }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );
