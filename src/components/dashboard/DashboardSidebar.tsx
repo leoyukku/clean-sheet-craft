@@ -1,5 +1,5 @@
 
-import { PlusCircle, List } from "lucide-react";
+import { PlusCircle, List, Settings, CreditCard, Contact, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { 
   Sidebar, 
@@ -15,6 +15,14 @@ import {
   SidebarInput
 } from "@/components/ui/sidebar";
 import { NoteFilters } from "@/components/dashboard/NoteFilters";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface DashboardSidebarProps {
   viewMode: "all" | "mine" | "public";
@@ -37,6 +45,12 @@ export function DashboardSidebar({
   setCategoryFilter,
   onCreateNote
 }: DashboardSidebarProps) {
+  const { signOut } = useAuth();
+  
+  const handleSignOut = () => {
+    signOut();
+  };
+
   return (
     <Sidebar>
       <SidebarHeader>
@@ -96,13 +110,42 @@ export function DashboardSidebar({
       </SidebarContent>
       
       <SidebarFooter>
-        <Button 
-          className="w-full bg-[#9b87f5] hover:bg-[#7E69AB]" 
-          onClick={onCreateNote}
-        >
-          <PlusCircle className="mr-2 h-4 w-4" />
-          New Note
-        </Button>
+        <div className="space-y-2">
+          <Button 
+            className="w-full bg-[#9b87f5] hover:bg-[#7E69AB]" 
+            onClick={onCreateNote}
+          >
+            <PlusCircle className="mr-2 h-4 w-4" />
+            New Note
+          </Button>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="outline" 
+                className="w-full"
+              >
+                <Settings className="mr-2 h-4 w-4" />
+                Settings
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="center" className="w-52">
+              <DropdownMenuItem>
+                <CreditCard className="mr-2 h-4 w-4" />
+                <span>Payment Plan</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <Contact className="mr-2 h-4 w-4" />
+                <span>Contact List Settings</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleSignOut}>
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Sign Out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </SidebarFooter>
     </Sidebar>
   );
