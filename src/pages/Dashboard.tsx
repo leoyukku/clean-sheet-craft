@@ -3,8 +3,19 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { DashboardContent } from "@/components/dashboard/DashboardContent";
 import { useNotes } from "@/hooks/use-notes";
+import { useAuth } from "@/contexts/AuthContext";
+import { RouteGuard } from "@/components/RouteGuard";
 
 const Dashboard = () => {
+  // Verify auth first with RouteGuard
+  return (
+    <RouteGuard>
+      <DashboardContent />
+    </RouteGuard>
+  );
+};
+
+const DashboardContent = () => {
   const {
     notes,
     selectedNote,

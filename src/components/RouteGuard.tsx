@@ -1,6 +1,7 @@
-import { ReactNode } from "react";
+
+import { ReactNode, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 
 type RouteGuardProps = {
   children: ReactNode;
@@ -8,6 +9,7 @@ type RouteGuardProps = {
 
 export function RouteGuard({ children }: RouteGuardProps) {
   const { authState, authReady, isLoading } = useAuth();
+  const location = useLocation();
   
   // Don't make any decisions until auth is ready
   if (!authReady || isLoading) {
@@ -23,7 +25,7 @@ export function RouteGuard({ children }: RouteGuardProps) {
   
   // If not authenticated, redirect to auth page
   if (authState === "UNAUTHENTICATED") {
-    return <Navigate to="/auth" replace />;
+    return <Navigate to="/auth" state={{ from: location }} replace />;
   }
   
   // Otherwise, render the children
