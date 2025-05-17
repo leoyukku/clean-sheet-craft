@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -80,11 +79,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         
-        // Fix the TypeScript error by comparing with specific string literals
-        // that we know are valid event types
+        // Only handle the specific events we know are valid
         if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
           setAuthState("AUTHENTICATED");
-        } else if (event === "SIGNED_OUT" || event === "USER_DELETED") {
+        } else if (event === "SIGNED_OUT") {
           setAuthState("UNAUTHENTICATED");
         }
         
