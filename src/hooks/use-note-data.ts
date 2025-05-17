@@ -10,14 +10,20 @@ export function useNoteData(viewMode: ViewMode, categoryFilter: string | null, s
   const [notes, setNotes] = useState<Note[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [categories, setCategories] = useState<string[]>([]);
-  const { user } = useAuth();
+  const { user, authState } = useAuth();
   const { toast } = useToast();
   
   // Fetch notes based on current filters
   useEffect(() => {
+    // Only fetch data when auth is stable and not initializing
+    if (authState === "INITIALIZING" || !["STABLE", "AUTHENTICATED"].includes(authState)) {
+      return;
+    }
+    
     async function fetchNotes() {
       try {
         setIsLoading(true);
+        console.log("Fetching notes with viewMode:", viewMode, "and user:", user?.id);
         
         let query = supabase.from('notes').select('*');
         
@@ -63,18 +69,23 @@ export function useNoteData(viewMode: ViewMode, categoryFilter: string | null, s
         }
       } catch (error) {
         console.error('Error fetching notes:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to load notes',
-          variant: 'destructive',
-        });
+        // Only show toast if we're actually authenticated
+        if (user) {
+          toast({
+            title: 'Error',
+            description: 'Failed to load notes',
+            variant: 'destructive',
+          });
+        }
+        setNotes([]);
+        setCategories([]);
       } finally {
         setIsLoading(false);
       }
     }
     
     fetchNotes();
-  }, [viewMode, categoryFilter, searchQuery, user, toast]);
+  }, [viewMode, categoryFilter, searchQuery, user, toast, authState]);
 
   return {
     notes,

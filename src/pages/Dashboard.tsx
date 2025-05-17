@@ -1,13 +1,13 @@
 
+import { memo } from "react";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { DashboardContent } from "@/components/dashboard/DashboardContent";
 import { useNotes } from "@/hooks/use-notes";
-import { useAuth } from "@/contexts/AuthContext";
 import { RouteGuard } from "@/components/RouteGuard";
 
+// Main Dashboard component protected by RouteGuard
 const Dashboard = () => {
-  // Verify auth first with RouteGuard
   return (
     <RouteGuard>
       <DashboardMainContent />
@@ -15,7 +15,8 @@ const Dashboard = () => {
   );
 };
 
-const DashboardMainContent = () => {
+// Separate component for the dashboard content to prevent unnecessary re-renders
+const DashboardMainContent = memo(() => {
   const {
     notes,
     selectedNote,
@@ -70,6 +71,6 @@ const DashboardMainContent = () => {
       </div>
     </SidebarProvider>
   );
-};
+});
 
 export default Dashboard;
