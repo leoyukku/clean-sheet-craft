@@ -12,6 +12,11 @@ export function useNoteData(viewMode: ViewMode, categoryFilter: string | null, s
   const { user, authState } = useAuth();
   const { toast } = useToast();
   
+  // Add this type guard above fetchNotes
+  function isUserWithEmail(users: unknown): users is { email: string } {
+    return typeof users === 'object' && users !== null && 'email' in users;
+  }
+  
   // Fetch notes based on current filters
   useEffect(() => {
     // Only fetch data when auth is stable and not initializing
@@ -24,7 +29,9 @@ export function useNoteData(viewMode: ViewMode, categoryFilter: string | null, s
         setIsLoading(true);
         console.log("Fetching notes with viewMode:", viewMode, "and user:", user?.id);
         
-        let query = supabase.from('notes').select('*, users:user_id(email)');
+        let query = supabase
+          .from('notes')
+          .select('*, users:user_id(email)');
         
         // Apply view mode filters
         if (viewMode === 'mine' && user) {
@@ -53,7 +60,11 @@ export function useNoteData(viewMode: ViewMode, categoryFilter: string | null, s
         }
         
         if (data) {
-          setNotes(data);
+          const safeNotes = data.map(note => ({
+            ...note,
+            users: isUserWithEmail(note.users) ? note.users : undefined
+          }));
+          setNotes(safeNotes);
           
           // Extract unique categories
           const uniqueCategories = Array.from(

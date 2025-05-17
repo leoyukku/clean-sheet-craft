@@ -7,5 +7,8 @@ export type Note = {
   created_at: string;
   updated_at: string;
   user_id: string;
-  users?: { email: string | null };
+  user_email?: string;
+  users?: {
+    email: string;
+  };
 }
