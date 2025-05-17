@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Note } from '@/types/note';
 import { supabase } from '@/integrations/supabase/client';
@@ -50,6 +49,8 @@ export function useNoteOperations() {
       console.log("Handling save note", note);
       console.log("Current user status:", !!user, user?.id);
       console.log("isCreating value:", isCreating);
+      console.log("Notes array:", notes);
+      console.log("updateNotes function:", !!updateNotes);
       
       if (!user) {
         console.error("Authentication required: User is not logged in");
@@ -139,6 +140,12 @@ export function useNoteOperations() {
       setIsCreating(false);
     } catch (error) {
       console.error('Error saving note:', error);
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      });
       toast({
         title: 'Error',
         description: 'Failed to save note',

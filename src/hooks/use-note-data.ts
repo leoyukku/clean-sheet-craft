@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Note } from '@/types/note';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,7 +18,7 @@ export function useNoteData(viewMode: ViewMode, categoryFilter: string | null, s
       try {
         setIsLoading(true);
         
-        let query = supabase.from('notes').select('*');
+        let query = supabase.from('notes').select('*, users:user_id(email)');
         
         // Apply view mode filters
         if (viewMode === 'mine' && user) {

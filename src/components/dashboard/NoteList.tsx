@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -13,6 +12,7 @@ type Note = {
   created_at: string;
   updated_at: string;
   user_id: string;
+  users?: { email: string };
 }
 
 interface NoteListProps {
@@ -71,6 +71,9 @@ export function NoteList({
             <ScrollArea className="h-32">
               <p className="text-sm text-muted-foreground">
                 {note.content || "No content"}
+              </p>
+              <p className="text-xs text-gray-500 mt-2">
+                Author: {note.users?.email || note.user_id}
               </p>
             </ScrollArea>
           </CardContent>

@@ -1,4 +1,3 @@
-
 import { Note } from '@/types/note';
 import { useNoteFilters, ViewMode } from './use-note-filters';
 import { useNoteData } from './use-note-data';
