@@ -59,12 +59,22 @@ export function NoteEditor({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Form submitted");
+    console.log("Form submitted with title:", title, "content:", content);
+    
+    if (!title.trim()) {
+      toast({
+        title: "Error",
+        description: "Title is required",
+        variant: "destructive"
+      });
+      return;
+    }
     
     const finalCategory = showNewCategory ? newCategory : category;
     
     // Get the current user
     const { data: { user } } = await supabase.auth.getUser();
+    console.log("Current user:", user ? user.id : "Not logged in");
     
     if (!user && isCreating) {
       toast({
@@ -174,9 +184,6 @@ export function NoteEditor({
           <Button 
             type="submit" 
             className="bg-[#9b87f5] hover:bg-[#7E69AB]"
-            onClick={(e) => {
-              console.log("Submit button clicked");
-            }}
           >
             {isCreating ? "Create Note" : "Update Note"}
           </Button>

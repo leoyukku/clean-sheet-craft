@@ -12,7 +12,7 @@ export function useNoteOperations() {
   const { toast } = useToast();
 
   const handleCreateNote = () => {
-    console.log("Creating new note");
+    console.log("Creating new note, user auth status:", !!user);
     setSelectedNote(null);
     setIsCreating(true);
   };
@@ -48,7 +48,11 @@ export function useNoteOperations() {
   const handleSaveNote = async (note: Partial<Note>, notes: Note[], updateNotes: (notes: Note[]) => void) => {
     try {
       console.log("Handling save note", note);
+      console.log("Current user status:", !!user, user?.id);
+      console.log("isCreating value:", isCreating);
+      
       if (!user) {
+        console.error("Authentication required: User is not logged in");
         toast({
           title: 'Authentication required',
           description: 'You must be signed in to save notes',
@@ -58,6 +62,7 @@ export function useNoteOperations() {
       }
       
       if (!note.title) {
+        console.error("Validation Error: Note title is required");
         toast({
           title: 'Validation Error',
           description: 'Note title is required',
@@ -67,21 +72,31 @@ export function useNoteOperations() {
       }
       
       if (isCreating) {
-        console.log("Creating new note in database");
-        // Create new note
-        const { data, error } = await supabase.from('notes').insert({
+        console.log("Creating new note in database with user_id:", user.id);
+        // Prepare note data with required user_id
+        const noteData = {
           title: note.title,
           content: note.content || '',
           category: note.category || null,
           is_public: note.is_public || false,
-          user_id: user.id,
-        }).select('*').single();
+          user_id: user.id
+        };
+        
+        console.log("Sending data to Supabase:", noteData);
+        
+        // Create new note
+        const { data, error } = await supabase.from('notes')
+          .insert(noteData)
+          .select('*')
+          .single();
         
         if (error) {
+          console.error("Supabase error:", error);
           throw error;
         }
         
         if (data) {
+          console.log("Note created successfully:", data);
           updateNotes([data, ...notes]);
           toast({
             title: 'Success',
@@ -105,10 +120,12 @@ export function useNoteOperations() {
           .single();
         
         if (error) {
+          console.error("Supabase update error:", error);
           throw error;
         }
         
         if (data) {
+          console.log("Note updated successfully:", data);
           updateNotes(notes.map(n => n.id === data.id ? data : n));
           toast({
             title: 'Success',
