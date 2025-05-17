@@ -10,12 +10,12 @@ const Dashboard = () => {
   // Verify auth first with RouteGuard
   return (
     <RouteGuard>
-      <DashboardContent />
+      <DashboardMainContent />
     </RouteGuard>
   );
 };
 
-const DashboardContent = () => {
+const DashboardMainContent = () => {
   const {
     notes,
     selectedNote,
