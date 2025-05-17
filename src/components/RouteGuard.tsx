@@ -1,28 +1,31 @@
 
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useState, useEffect } from "react";
 
 type RouteGuardProps = {
   children: ReactNode;
 };
 
 export function RouteGuard({ children }: RouteGuardProps) {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, authReady } = useAuth();
   const location = useLocation();
-  const [isReady, setIsReady] = useState(false);
+  const [shouldRedirect, setShouldRedirect] = useState(false);
   
-  // Add a small delay before rendering to prevent flashing content
-  // and allow auth state to stabilize
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsReady(true);
-    }, 300);
-    
-    return () => clearTimeout(timer);
-  }, []);
+    // Only determine redirect after auth is ready and not loading
+    if (authReady && !isLoading) {
+      // Add a delay to prevent immediate redirects that could cause loops
+      const timer = setTimeout(() => {
+        setShouldRedirect(!user);
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [user, isLoading, authReady]);
   
-  if (!isReady || isLoading) {
+  // Don't make any decisions until auth is ready
+  if (!authReady || isLoading) {
     // Display a loading spinner while auth state is being determined
     return (
       <div className="flex items-center justify-center h-screen">
@@ -31,10 +34,11 @@ export function RouteGuard({ children }: RouteGuardProps) {
     );
   }
 
-  console.log("RouteGuard user state:", !!user);
+  console.log("RouteGuard: Auth ready, user state:", !!user, "shouldRedirect:", shouldRedirect);
   
-  if (!user) {
-    // Redirect to auth page if user is not logged in
+  // Only redirect when we're sure we should
+  if (shouldRedirect) {
+    console.log("RouteGuard: Redirecting to auth page");
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 

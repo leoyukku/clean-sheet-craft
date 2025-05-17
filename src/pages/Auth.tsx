@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate, useLocation } from "react-router-dom";
@@ -11,24 +10,32 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 export default function Auth() {
   const location = useLocation();
   const from = (location.state as any)?.from?.pathname || "/dashboard";
-  const { user, signIn, signUp, isLoading } = useAuth();
+  const { user, signIn, signUp, isLoading, authReady } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [activeTab, setActiveTab] = useState("signin");
   const [authInProgress, setAuthInProgress] = useState(false);
-  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [redirectConfirmed, setRedirectConfirmed] = useState(false);
   
   useEffect(() => {
-    // Only redirect when we have a user AND we're not currently loading
-    // This prevents premature redirects during auth state resolution
-    if (user && !isLoading && !isRedirecting) {
-      console.log("Auth page redirecting to:", from);
-      setIsRedirecting(true);
+    // Only set redirect when we're sure the auth is complete and stable
+    // This prevents premature redirects during auth state changes
+    if (authReady && !isLoading && user && !redirectConfirmed) {
+      console.log("Auth page: Auth is ready, user is present, preparing to redirect to:", from);
+      
+      // Add a significant delay to ensure auth is fully established
+      const timer = setTimeout(() => {
+        console.log("Auth page: Confirming redirect");
+        setRedirectConfirmed(true);
+      }, 1000);
+      
+      return () => clearTimeout(timer);
     }
-  }, [user, isLoading, from, isRedirecting]);
+  }, [user, isLoading, authReady, from, redirectConfirmed]);
 
-  // If redirecting to dashboard, do it properly with a delay to ensure state is stable
-  if (isRedirecting) {
+  // Only redirect when we're 100% sure we should
+  if (redirectConfirmed && user) {
+    console.log("Auth page: Executing redirect to:", from);
     return <Navigate to={from} replace />;
   }
 
