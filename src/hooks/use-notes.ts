@@ -14,7 +14,7 @@ export function useNotes() {
   const [isLoading, setIsLoading] = useState(true);
   const [categories, setCategories] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('all');
-  const [filterCategory, setFilterCategory] = useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const { user } = useAuth();
   const { toast } = useToast();
@@ -35,8 +35,8 @@ export function useNotes() {
         }
         
         // Apply category filter if set
-        if (filterCategory) {
-          query = query.eq('category', filterCategory);
+        if (categoryFilter) {
+          query = query.eq('category', categoryFilter);
         }
         
         // Apply search query if set
@@ -80,19 +80,14 @@ export function useNotes() {
     }
     
     fetchNotes();
-  }, [viewMode, filterCategory, searchQuery, user, toast]);
+  }, [viewMode, categoryFilter, searchQuery, user, toast]);
 
-  const selectNote = (note: Note) => {
-    setSelectedNote(note);
-    setIsCreating(false);
-  };
-
-  const createNote = () => {
+  const handleCreateNote = () => {
     setSelectedNote(null);
     setIsCreating(true);
   };
 
-  const deleteNote = async (id: string) => {
+  const handleDeleteNote = async (id: string) => {
     try {
       const { error } = await supabase.from('notes').delete().eq('id', id);
       
@@ -120,7 +115,7 @@ export function useNotes() {
     }
   };
 
-  const saveNote = async (note: Partial<Note>) => {
+  const handleSaveNote = async (note: Partial<Note>) => {
     try {
       if (!user) {
         toast({
@@ -202,11 +197,6 @@ export function useNotes() {
     }
   };
 
-  const cancelEdit = () => {
-    setSelectedNote(null);
-    setIsCreating(false);
-  };
-
   return {
     notes,
     selectedNote,
@@ -214,15 +204,15 @@ export function useNotes() {
     isLoading,
     categories,
     viewMode,
-    filterCategory,
+    categoryFilter,
     searchQuery,
-    selectNote,
-    createNote,
-    deleteNote,
-    saveNote,
-    cancelEdit,
+    setSelectedNote,
+    setIsCreating,
+    setCategoryFilter,
+    handleCreateNote,
+    handleDeleteNote,
+    handleSaveNote,
     setViewMode,
-    setFilterCategory,
     setSearchQuery,
   };
 }
