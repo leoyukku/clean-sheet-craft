@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,11 +37,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Only set loading to false after we've received at least one auth state event
         if (!authStateInitialized) {
           authStateInitialized = true;
-          // Small delay to ensure state settles
+          // Reduced delay to ensure state settles
           setTimeout(() => {
             setIsLoading(false);
             setAuthReady(true);
-          }, 500);
+            console.log("Auth state initialized with event:", event);
+          }, 100); // Reduced from 500ms to 100ms
         } else {
           setIsLoading(false);
         }
@@ -53,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       
-      // If we haven't received an auth state event after 1 second,
+      // If we haven't received an auth state event after 500ms (reduced from 1 second),
       // consider auth initialized anyway to prevent a stuck loading state
       setTimeout(() => {
         if (!authStateInitialized) {
@@ -62,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsLoading(false);
           setAuthReady(true);
         }
-      }, 1000);
+      }, 500); // Reduced from 1000ms to 500ms
     });
 
     return () => {

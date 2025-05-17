@@ -15,10 +15,10 @@ export function RouteGuard({ children }: RouteGuardProps) {
   useEffect(() => {
     // Only determine redirect after auth is ready and not loading
     if (authReady && !isLoading) {
-      // Add a delay to prevent immediate redirects that could cause loops
+      // Reduced delay for redirection
       const timer = setTimeout(() => {
         setShouldRedirect(!user);
-      }, 500);
+      }, 100); // Reduced from 500ms to 100ms
       
       return () => clearTimeout(timer);
     }

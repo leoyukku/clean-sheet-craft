@@ -18,22 +18,21 @@ export default function Auth() {
   const [redirectConfirmed, setRedirectConfirmed] = useState(false);
   
   useEffect(() => {
-    // Only set redirect when we're sure the auth is complete and stable
-    // This prevents premature redirects during auth state changes
+    // Streamlined redirect logic with reduced delay
     if (authReady && !isLoading && user && !redirectConfirmed) {
       console.log("Auth page: Auth is ready, user is present, preparing to redirect to:", from);
       
-      // Add a significant delay to ensure auth is fully established
+      // Reduced delay to 200ms (from 1000ms)
       const timer = setTimeout(() => {
         console.log("Auth page: Confirming redirect");
         setRedirectConfirmed(true);
-      }, 1000);
+      }, 200);
       
       return () => clearTimeout(timer);
     }
   }, [user, isLoading, authReady, from, redirectConfirmed]);
 
-  // Only redirect when we're 100% sure we should
+  // Immediate redirect when confirmed
   if (redirectConfirmed && user) {
     console.log("Auth page: Executing redirect to:", from);
     return <Navigate to={from} replace />;
