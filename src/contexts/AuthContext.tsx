@@ -22,23 +22,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setIsLoading(false);
-    });
+    // Add a small delay to ensure Supabase is fully initialized
+    const timer = setTimeout(() => {
+      // Set up auth state listener FIRST to catch all auth events
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        (event, session) => {
+          console.log("Auth state changed:", event, session?.user?.email);
+          setSession(session);
+          setUser(session?.user ?? null);
+          setIsLoading(false);
+        }
+      );
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      // THEN check for existing session
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        console.log("Initial session check:", session?.user?.email);
         setSession(session);
         setUser(session?.user ?? null);
         setIsLoading(false);
-      }
-    );
+      });
 
-    return () => subscription.unsubscribe();
+      return () => {
+        subscription.unsubscribe();
+      };
+    }, 100); // Small delay to ensure proper initialization
+
+    return () => clearTimeout(timer);
   }, []);
 
   const signIn = async (email: string, password: string) => {
@@ -65,7 +74,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      // Don't set isLoading to false here - the onAuthStateChange will handle it
+      // This avoids race conditions between state updates and redirects
     }
   };
 
@@ -80,11 +90,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           description: error.message,
           variant: "destructive",
         });
+        setIsLoading(false); // Reset loading only on error
       } else {
         toast({
           title: "Account created",
           description: "Please check your email to confirm your account.",
         });
+        // Don't reset isLoading on success - let onAuthStateChange handle it
       }
     } catch (error) {
       toast({
@@ -92,8 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         description: "An unexpected error occurred.",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
+      setIsLoading(false); // Reset loading only on error
     }
   };
 
@@ -105,13 +116,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         title: "Signed out",
         description: "You've been successfully signed out.",
       });
+      // Let onAuthStateChange handle the isLoading state and user state reset
     } catch (error) {
       toast({
         title: "Error",
         description: "An unexpected error occurred signing out.",
         variant: "destructive",
       });
-    } finally {
       setIsLoading(false);
     }
   };

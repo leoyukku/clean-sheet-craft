@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -15,19 +15,38 @@ export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [activeTab, setActiveTab] = useState("signin");
+  const [authInProgress, setAuthInProgress] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  
+  useEffect(() => {
+    // Only redirect when we have a user AND we're not currently loading
+    // This prevents premature redirects during auth state resolution
+    if (user && !isLoading && !isRedirecting) {
+      console.log("Auth page redirecting to:", from);
+      setIsRedirecting(true);
+    }
+  }, [user, isLoading, from, isRedirecting]);
 
-  // If already logged in, redirect to intended destination
-  if (user) {
+  // If redirecting to dashboard, do it properly with a delay to ensure state is stable
+  if (isRedirecting) {
     return <Navigate to={from} replace />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (activeTab === "signin") {
-      await signIn(email, password);
-    } else {
-      await signUp(email, password);
+    if (authInProgress) return;
+    
+    setAuthInProgress(true);
+    
+    try {
+      if (activeTab === "signin") {
+        await signIn(email, password);
+      } else {
+        await signUp(email, password);
+      }
+    } finally {
+      setAuthInProgress(false);
     }
   };
 
@@ -81,9 +100,9 @@ export default function Auth() {
                   <Button 
                     type="submit" 
                     className="w-full bg-[#9b87f5] hover:bg-[#7E69AB]"
-                    disabled={isLoading}
+                    disabled={isLoading || authInProgress}
                   >
-                    {isLoading ? "Signing In..." : "Sign In"}
+                    {isLoading || authInProgress ? "Signing In..." : "Sign In"}
                   </Button>
                 </CardFooter>
               </form>
@@ -124,9 +143,9 @@ export default function Auth() {
                   <Button 
                     type="submit" 
                     className="w-full bg-[#9b87f5] hover:bg-[#7E69AB]"
-                    disabled={isLoading}
+                    disabled={isLoading || authInProgress}
                   >
-                    {isLoading ? "Signing Up..." : "Sign Up"}
+                    {isLoading || authInProgress ? "Signing Up..." : "Sign Up"}
                   </Button>
                 </CardFooter>
               </form>
